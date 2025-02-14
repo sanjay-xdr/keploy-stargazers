@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Stargazers to CSV</title>
+</head>
+<body>
+    <h2>Enter GitHub Repo URL:</h2>
+    <input type="text" id="repoUrl" placeholder="https://github.com/user/repo">
+    <button onclick="fetchStargazers()">Get Stargazers</button>
+    <p id="status"></p>
+
+    <script>
+        async function fetchStargazers() {
+            const repoUrl = document.getElementById("repoUrl").value.trim();
+            const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+            if (!match) {
+                alert("Invalid GitHub URL. Use format: https://github.com/user/repo");
+                return;
+            }
+
+            const owner = match[1];
+            const repo = match[2];
+            const apiUrl = `https://api.github.com/repos/${owner}/${repo}/stargazers?per_page=100`;
+
+            let stargazers = [];
+            let page = 1;
+            
+            try {
+                document.getElementById("status").innerText = "Fetching data...";
+                while (true) {
+                    const response = await fetch(`${apiUrl}&page=${page}`, {
+                        headers: { "Accept": "application/vnd.github.v3+json" }
+                    });
+                    if (!response.ok) break; 
+
+                    const data = await response.json();
+                    if (data.length === 0) break; 
+
+                    stargazers = stargazers.concat(data);
+                    page++;
+                }
+
+                if (stargazers.length === 0) {
+                    alert("No stargazers found or repo not public.");
+                    return;
+                }
+
+                generateCSV(stargazers);
+                document.getElementById("status").innerText = "CSV file ready!";
+            } catch (error) {
+                alert("Error fetching data. Check the repo URL.");
+                console.error(error);
+            }
+        }
+
+        function generateCSV(data) {
+            let csvContent = "Username,Profile URL,User Type\n";
+            data.forEach(user => {
+                csvContent += `${user.login},${user.html_url},${user.type}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: "text/csv" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "stargazers.csv";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
